@@ -1,0 +1,95 @@
+#!/bin/bash
+
+PATH='/bin:/sbin:/usr/bin:/usr/sbin'
+
+APT_OPTS='-q -q -y'
+POSTGRESQL_VERSION='9.1'
+PUPPET_REPO='http://apt.puppetlabs.com/'
+DISTRIB_CODENAME=`awk -F= '/^DISTRIB_CODENAME/ { print $2 }' /etc/lsb-release`
+
+# Make apt-get install really quiet.
+export DEBIAN_FRONTEND=noninteractive
+
+if [ "`/usr/bin/id -u`" != "0" ]; then
+  echo "This script must be run as root" 1>&2
+  exit 1
+fi
+
+function add_puppet_repository()
+{
+  echo "deb ${PUPPET_REPO} ${DISTRIB_CODENAME} main" > /etc/apt/sources.list.d/puppet.list
+  curl --silent ${PUPPET_REPO}/pubkey.gpg | apt-key add - > /dev/null
+  apt-get ${APT_OPTS} update
+}
+
+function install_postgresql()
+{
+  apt-get ${APT_OPTS} update
+  apt-get ${APT_OPTS} install postgresql-${POSTGRESQL_VERSION} libpq-dev
+  cat > /etc/postgresql/${POSTGRESQL_VERSION}/main/pg_hba.conf << EOF
+# PostgreSQL Client Authentication Configuration File
+# ===================================================
+#
+# Database administrative login by Unix domain socket
+# Do not disable!
+local   all             postgres                                peer
+
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+local   puppet          puppet                                  md5
+local   all             all                                     peer
+host    all             all             127.0.0.1/32            md5
+host    all             all             ::1/128                 md5
+EOF
+  sudo -u postgres -i createdb puppet
+  sudo -u postgres -i createuser -D -R -S puppet
+  sudo -u postgres -i psql template1 -c"ALTER USER puppet WITH PASSWORD 'puppet';" >/dev/null
+  sudo -u postgres -i psql template1 -c'GRANT CREATE ON DATABASE puppet to puppet' >/dev/null
+}
+
+function install_rubygems()
+{
+  apt-get ${APT_OPTS} update
+  apt-get ${APT_OPTS} install rubygems1.8
+  gem install activerecord --no-rdoc --no-ri --version 3.0.11
+  gem install pg --no-rdoc --no-ri
+}
+
+function install_puppetmaster()
+{
+  apt-get ${APT_OPTS} update
+  apt-get ${APT_OPTS} install puppet puppetmaster
+  /etc/init.d/puppetmaster stop
+  cat > /etc/puppet/puppet.conf << EOF
+[agent]
+  report      = true
+  show_diff   = true
+  environment = production
+[main]
+  server      = puppetmaster
+  environment = production
+  confdir     = /etc/puppet
+  logdir      = /var/log/puppet
+  vardir      = /var/lib/puppet
+  ssldir      = /var/lib/puppet/ssl
+  rundir      = /var/run/puppet
+  factpath    = $vardir/lib/facter
+  templatedir = $confdir/templates
+[master]
+  environment  = production
+  manifest     = $confdir/environments/$environment/manifests/site.pp
+  modulepath   = $confdir/environments/$environment/modules
+  storeconfigs = true
+  dbadapter    = postgresql
+  dbuser       = puppet
+  dbpassword   = puppet
+  dbserver     = localhost
+  dbname       = puppet
+  ssl_client_header        = SSL_CLIENT_S_DN 
+  ssl_client_verify_header = SSL_CLIENT_VERIFY
+EOF
+}
+
+add_puppet_repository
+install_postgresql
+install_rubygems
+install_puppetmaster
