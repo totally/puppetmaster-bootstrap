@@ -8,7 +8,7 @@ Only tested on Ubuntu 12.04 LTS.
 
 Run as root
 
-    curl -o puppetmaster-bootstrap -s https://github.com/pkhamre/puppetmaster-bootstrap/raw/master/puppetmaster-bootstrap
+    curl -o puppetmaster-bootstrap -s https://raw.github.com/pkhamre/puppetmaster-bootstrap/master/puppetmaster-bootstrap
     chmod +x puppetmaster-bootstrap
     ./puppetmaster-bootstrap
 
@@ -16,7 +16,7 @@ Run as root
 
 Run as root
 
-    curl -o puppet-bootstrap -s https://github.com/pkhamre/puppetmaster-bootstrap/raw/master/puppet-bootstrap
+    curl -o puppet-bootstrap -s https://raw.github.com/pkhamre/puppetmaster-bootstrap/master/puppet-bootstrap
     chmod +x puppet-bootstrap
     ./puppet-bootstrap
 
