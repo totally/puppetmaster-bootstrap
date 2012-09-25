@@ -126,6 +126,7 @@ end
 EOF
 
   cp /usr/share/puppet/ext/rack/files/config.ru /etc/puppet/
+  exec bash
   unicorn --env production --daemonize --config-file /etc/puppet/unicorn.conf
 }
 
@@ -222,6 +223,8 @@ EOF
 
   ln -s /etc/nginx/sites-available/puppetmaster.conf /etc/nginx/sites-enabled/
   rm -f /etc/nginx/sites-enabled/default
+
+  /etc/init.d/nginx start
 }
 
 add_puppet_repository
