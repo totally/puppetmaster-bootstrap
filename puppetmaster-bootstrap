@@ -126,9 +126,7 @@ end
 EOF
 
   cp /usr/share/puppet/ext/rack/files/config.ru /etc/puppet/
-
-  source ~/.profile
-  unicorn --env production --daemonize --config-file /etc/puppet/unicorn.conf
+  /usr/local/bin/unicorn --env production --daemonize --config-file /etc/puppet/unicorn.conf
 }
 
 function install_nginx()
