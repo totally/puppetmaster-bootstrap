@@ -60,10 +60,29 @@ function install_rubygems()
     exit 1
   fi
 
-  gem install activerecord --quiet --no-rdoc --no-ri --version 3.0.11
-  gem install pg --no-rdoc --quiet --no-ri
-  gem install rack --no-rdoc --quiet --no-ri
-  gem install unicorn --no-rdoc --quiet --no-ri
+  gem install activerecord --quiet --no-rdoc --no-ri --version 3.0.11 >/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing rubygem: activerecord."
+    exit 1
+  fi
+
+  gem install pg --no-rdoc --quiet --no-ri >/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing rubygem: pg"
+    exit 1
+  fi
+
+  gem install rack --no-rdoc --quiet --no-ri >/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing rubygem: rack"
+    exit 1
+  fi
+
+  gem install unicorn --no-rdoc --quiet --no-ri >/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing rubygem: unicorn"
+    exit 1
+  fi
 }
 
 function install_puppetmaster()
