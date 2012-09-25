@@ -25,7 +25,12 @@ function add_puppet_repository()
 function install_postgresql()
 {
   apt-get ${APT_OPTS} update
-  apt-get ${APT_OPTS} install postgresql-${POSTGRESQL_VERSION} libpq-dev
+  apt-get ${APT_OPTS} install postgresql-${POSTGRESQL_VERSION} libpq-dev >/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing PostgreSQL."
+    exit 1
+  fi
+
   cat > /etc/postgresql/${POSTGRESQL_VERSION}/main/pg_hba.conf << EOF
 # PostgreSQL Client Authentication Configuration File
 # ===================================================
@@ -49,19 +54,32 @@ EOF
 function install_rubygems()
 {
   apt-get ${APT_OPTS} update
-  apt-get ${APT_OPTS} install rubygems1.8
-  gem install activerecord --no-rdoc --no-ri --version 3.0.11
-  gem install pg --no-rdoc --no-ri
-  gem install rack --no-rdoc --no-ri
-  gem install unicorn --no-rdoc --no-ri
+  apt-get ${APT_OPTS} install rubygems1.8 >/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing rubygems."
+    exit 1
+  fi
+
+  gem install activerecord --quiet --no-rdoc --no-ri --version 3.0.11
+  gem install pg --no-rdoc --quiet --no-ri
+  gem install rack --no-rdoc --quiet --no-ri
+  gem install unicorn --no-rdoc --quiet --no-ri
 }
 
 function install_puppetmaster()
 {
   apt-get ${APT_OPTS} update
-  apt-get ${APT_OPTS} install puppet puppetmaster
+  apt-get ${APT_OPTS} install puppet puppetmaster >/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing Puppetmaster."
+    exit 1
+  fi
 
-  /etc/init.d/puppetmaster stop
+  /etc/init.d/puppetmaster stop>/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with stopping Puppetmaster."
+    exit 1
+  fi
 
   cat > /etc/puppet/puppet.conf << EOF
 [agent]
@@ -132,7 +150,11 @@ EOF
 function install_nginx()
 {
   apt-get ${APT_OPTS} update
-  apt-get ${APT_OPTS} install nginx-light
+  apt-get ${APT_OPTS} install nginx-light>/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with installing nginx."
+    exit 1
+  fi
 
   cat > /etc/nginx/nginx.conf << EOF
 user www-data;
@@ -224,7 +246,11 @@ EOF
   ln -s /etc/nginx/sites-available/puppetmaster.conf /etc/nginx/sites-enabled/
   rm -f /etc/nginx/sites-enabled/default
 
-  /etc/init.d/nginx start
+  /etc/init.d/nginx start>/dev/null 2>&1
+  if [ ${?} -ne 0 ]; then
+    echo "Something went wrong with starting nginx."
+    exit 1
+  fi
 }
 
 add_puppet_repository
