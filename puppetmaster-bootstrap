@@ -126,7 +126,8 @@ end
 EOF
 
   cp /usr/share/puppet/ext/rack/files/config.ru /etc/puppet/
-  exec bash
+
+  source ~/.profile
   unicorn --env production --daemonize --config-file /etc/puppet/unicorn.conf
 }
 
