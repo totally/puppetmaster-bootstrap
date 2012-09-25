@@ -52,13 +52,17 @@ function install_rubygems()
   apt-get ${APT_OPTS} install rubygems1.8
   gem install activerecord --no-rdoc --no-ri --version 3.0.11
   gem install pg --no-rdoc --no-ri
+  gem install rack --no-rdoc --no-ri
+  gem install unicorn --no-rdoc --no-ri
 }
 
 function install_puppetmaster()
 {
   apt-get ${APT_OPTS} update
   apt-get ${APT_OPTS} install puppet puppetmaster
+
   /etc/init.d/puppetmaster stop
+
   cat > /etc/puppet/puppet.conf << EOF
 [agent]
   report      = true
@@ -84,13 +88,144 @@ function install_puppetmaster()
   dbpassword   = puppet
   dbserver     = localhost
   dbname       = puppet
-  ssl_client_header        = SSL_CLIENT_S_DN 
+  ssl_client_header        = SSL_CLIENT_S_DN
   ssl_client_verify_header = SSL_CLIENT_VERIFY
 EOF
-  /etc/init.d/puppetmaster start
+
+  cat > /etc/default/puppetmaster << EOF
+# Defaults for puppetmaster - sourced by /etc/init.d/puppetmaster
+
+START=no
+DAEMON_OPTS=""
+EOF
+
+  cat > /etc/puppet/unicorn.conf << EOF
+worker_processes 8
+working_directory "/etc/puppet"
+listen '/var/run/puppet/puppetmaster_unicorn.sock', :backlog => 512
+timeout 120
+pid "/var/run/puppet/puppetmaster_unicorn.pid"
+stderr_path "/var/log/puppet/puppetmaster_unicorn.stderr.log"
+stdout_path "/var/log/puppet/puppetmaster_unicorn.stdout.log"
+
+preload_app true
+if GC.respond_to?(:copy_on_write_friendly=)
+  GC.copy_on_write_friendly = true
+end
+
+before_fork do |server, worker|
+  old_pid = "#{server.config[:pid]}.oldbin"
+  if File.exists?(old_pid) && server.pid != old_pid
+    begin
+      Process.kill("QUIT", File.read(old_pid).to_i)
+    rescue Errno::ENOENT, Errno::ESRCH
+      # someone else did our job for us
+    end
+  end
+end
+EOF
+
+  cp /usr/share/puppet/ext/rack/files/config.ru /etc/puppet/
+  unicorn --env production --daemonize --config-file /etc/puppet/unicorn.conf
+}
+
+function install_nginx() {
+  apt-get ${APT_OPTS} update
+  apt-get ${APT_OPTS} install nginx-light
+
+  cat > /etc/nginx/nginx.conf << EOF
+user www-data;
+worker_processes 4;
+
+error_log /var/log/nginx/error.log;
+pid /var/run/nginx.pid;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  include /etc/nginx/mime.types;
+
+  sendfile on;
+  server_names_hash_bucket_size 64;
+  client_max_body_size 128M;
+  types_hash_max_size 1024;
+  types_hash_bucket_size 64;
+  port_in_redirect off;
+  keepalive_timeout 64;
+  tcp_nodelay on;
+  server_tokens off;
+
+  gzip on;
+  gzip_http_version 1.1;
+  gzip_vary on;
+  gzip_comp_level 6;
+  gzip_proxied any;
+  gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+  gzip_buffers 16 8k;
+  gzip_disable “MSIE [1-6].(?!.*SV1)”;
+
+  include /etc/nginx/conf.d/*.conf;
+  include /etc/nginx/sites-enabled/*.conf;
+
+  server {
+    listen 127.0.0.1:8200;
+      location /server-status {
+      access_log off;
+      allow 127.0.0.1;
+      deny all;
+      stub_status on;
+    }
+  }
+}
+EOF
+
+  cat > /etc/nginx/sites-available/puppetmaster.conf << EOF
+upstream puppetmaster_unicorn {
+  server unix:/var/run/puppet/puppetmaster_unicorn.sock fail_timeout=0;
+}
+
+server {
+  listen 8140 ssl;
+
+  location /probe {
+    empty_gif;
+  }
+
+  ssl_session_timeout 5m;
+  ssl_certificate /var/lib/puppet/ssl/certs/puppetmaster.pem;
+  ssl_certificate_key /var/lib/puppet/ssl/private_keys/puppetmaster.pem;
+  ssl_client_certificate /var/lib/puppet/ssl/ca/ca_crt.pem;
+  ssl_ciphers SSLv2:-LOW:-EXPORT:RC4+RSA;
+  ssl_verify_client optional;
+
+  root /usr/share/nginx/www;
+
+  proxy_set_header Host \$host;
+  proxy_set_header X-Real-IP \$remote_addr;
+  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+  proxy_set_header X-Client-Verify \$ssl_client_verify;
+  proxy_set_header X-Client-DN \$ssl_client_s_dn;
+  proxy_set_header X-SSL-Issuer \$ssl_client_i_dn;
+  proxy_read_timeout 120;
+
+  location / {
+    proxy_pass http://puppetmaster_unicorn;
+    proxy_redirect off;
+  }
+
+  access_log /var/log/nginx/puppetmaster-access.log;
+  error_log /var/log/nginx/puppetmaster-error.log;
+}
+EOF
+
+  ln -s /etc/nginx/sites-available/puppetmaster.conf /etc/nginx/sites-enabled/
+  rm -f /etc/nginx/sites-enabled/default
 }
 
 add_puppet_repository
 install_postgresql
 install_rubygems
 install_puppetmaster
+install_nginx
