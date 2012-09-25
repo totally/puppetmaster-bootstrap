@@ -131,7 +131,8 @@ EOF
   unicorn --env production --daemonize --config-file /etc/puppet/unicorn.conf
 }
 
-function install_nginx() {
+function install_nginx()
+{
   apt-get ${APT_OPTS} update
   apt-get ${APT_OPTS} install nginx-light
 
