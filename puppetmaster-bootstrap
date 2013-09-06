@@ -17,7 +17,7 @@ fi
 
 function add_puppet_repository()
 {
-  echo "deb ${PUPPET_REPO} ${DISTRIB_CODENAME} main" > /etc/apt/sources.list.d/puppet.list
+  echo "deb ${PUPPET_REPO} ${DISTRIB_CODENAME} main dependencies" > /etc/apt/sources.list.d/puppet.list
   curl --silent ${PUPPET_REPO}/pubkey.gpg | apt-key add - > /dev/null
   apt-get ${APT_OPTS} update
 }
