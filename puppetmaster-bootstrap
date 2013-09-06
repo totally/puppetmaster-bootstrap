@@ -105,20 +105,18 @@ function install_puppetmaster()
   report      = true
   show_diff   = true
   environment = production
+
 [main]
-  server      = puppet
-  environment = production
-  confdir     = /etc/puppet
   logdir      = /var/log/puppet
   vardir      = /var/lib/puppet
   ssldir      = /var/lib/puppet/ssl
   rundir      = /var/run/puppet
   factpath    = \$vardir/lib/facter
   templatedir = \$confdir/templates
+  pluginsync  = true
+
 [master]
-  environment  = production
-  manifest     = \$confdir/environments/\$environment/manifests/site.pp
-  modulepath   = \$confdir/environments/\$environment/modules
+  modulepath   = /etc/puppet/modules
   storeconfigs = true
   dbadapter    = postgresql
   dbuser       = puppet
