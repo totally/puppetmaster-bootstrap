@@ -10,6 +10,11 @@ DISTRIB_CODENAME=`awk -F= '/^DISTRIB_CODENAME/ { print $2 }' /etc/lsb-release`
 # Find puppetmaster
 echo "search ryanleary.org" >> /etc/resolv.conf
 
+# Set facter dir
+mkdir -p /etc/facter/facts.d/
+
+echo "true" > /etc/facter/facts.d/server_role.txt
+
 # Make apt-get install really quiet.
 export DEBIAN_FRONTEND=noninteractive
 
