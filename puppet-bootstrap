@@ -7,9 +7,6 @@ POSTGRESQL_VERSION='9.1'
 PUPPET_REPO='http://apt.puppetlabs.com/'
 DISTRIB_CODENAME=`awk -F= '/^DISTRIB_CODENAME/ { print $2 }' /etc/lsb-release`
 
-# Find puppetmaster
-echo "search ryanleary.org" >> /etc/resolv.conf
-
 # Set facter dir
 mkdir -p /etc/facter/facts.d/
 
